@@ -1,0 +1,46 @@
+# See also https://github.com/fireflycons/pysguard
+# Global settings.
+# dbhome and logdir should be left as they are
+# redirect specifies the default URL to redirect denied accesses to. Update as you see fit
+set:
+  dbhome: /var/lib/pysguard/db
+  logdir: /var/log/squid
+  redirect: http://example.com
+
+# A time constraint for when kids should stop browsing because it's bedtime!
+time:
+  - name: bedtime
+    constraints:
+      - weekly * 20:00-23:59            # Every day
+      - weekly fridays 21:00-23:59      # Later when not a school night
+      - weekly saturdays 21:00-23:59    # Later when not a school night
+
+sources:
+  # This source identifies the children. Requires Kerberos to be enabled.
+  - name: kids
+    user:
+    - kid1              # Network logon name as discovered by kerberos
+    - kid2
+
+# Destinations match up with directories found in SquidGuard blacklist tarballs.
+destinations:
+  - name: adult         # Matches name of a directory within the blacklist tarball
+    log: pornaccesses   # Will create a separate log with this name in the logdir if any URL in the blacklist is hit
+  - name: warez
+  - name: social_networks
+    log: socialaccess
+
+acl:
+  # For kids, allow them to browse anywhere except the given blacklists until bedtime
+  - source: kids
+    outside:
+      time: bedtime
+      pass: ~adult ~warez ~social_networks all
+      redirect: http://myhost.mydomain/not-for-kids.html    # Redirect here if a blacklisted URL is hit
+    else:
+      pass: none                                            # All browsing is disallowed now.
+      redirect: http://myhost.mydomain/bedtime.html         # Redirect here at betime
+
+  # Anyone else can browse anywhere, anytime
+  - source: default
+    pass: all
